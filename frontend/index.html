@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Judge Agent</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>AI Judge Agent</h1>
+            <p class="subtitle">Analyze content for AI generation, virality potential, and audience distribution</p>
+        </header>
+
+        <main>
+            <nav class="tabs" role="tablist">
+                <button class="tab active" data-tab="text" role="tab" aria-selected="true">Text</button>
+                <button class="tab" data-tab="video" role="tab" aria-selected="false">Video</button>
+                <button class="tab" data-tab="url" role="tab" aria-selected="false">URL</button>
+            </nav>
+
+            <!-- Text input -->
+            <div class="tab-panel active" id="panel-text" role="tabpanel">
+                <textarea id="text-input" placeholder="Paste text content to analyze..." rows="8" maxlength="50000"></textarea>
+                <div class="char-count"><span id="char-count">0</span> / 50,000</div>
+            </div>
+
+            <!-- Video upload -->
+            <div class="tab-panel" id="panel-video" role="tabpanel">
+                <div class="drop-zone" id="drop-zone">
+                    <input type="file" id="video-input" accept="video/mp4,video/avi,video/quicktime,video/x-matroska,video/x-msvideo" hidden>
+                    <div class="drop-zone-text">
+                        <span class="drop-icon">&#127916;</span>
+                        <p>Drag &amp; drop a video file here</p>
+                        <p class="drop-hint">or click to browse (mp4, avi, mov, mkv &mdash; max 50 MB)</p>
+                    </div>
+                    <div class="file-selected" id="file-selected" hidden>
+                        <span id="file-name"></span>
+                        <button id="clear-file" type="button">&times;</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- URL input -->
+            <div class="tab-panel" id="panel-url" role="tabpanel">
+                <input type="url" id="url-input" placeholder="https://example.com/article-or-image">
+            </div>
+
+            <button id="submit-btn" type="button">Analyze</button>
+
+            <!-- Loading -->
+            <div id="loading" class="loading" hidden>
+                <div class="spinner"></div>
+                <p>Analyzing content with Claude...</p>
+            </div>
+
+            <!-- Error -->
+            <div id="error" class="error-banner" hidden></div>
+
+            <!-- Results -->
+            <section id="results" class="results" hidden>
+                <h2>Analysis Results</h2>
+
+                <div class="card" id="card-ai">
+                    <h3>AI-Generated Prediction</h3>
+                    <div class="probability-bar-container">
+                        <div class="probability-bar" id="ai-bar"></div>
+                    </div>
+                    <div class="ai-meta">
+                        <span class="label-badge" id="ai-label"></span>
+                        <span class="probability-value" id="ai-probability"></span>
+                    </div>
+                    <p class="reasoning" id="ai-reasoning"></p>
+                </div>
+
+                <div class="card" id="card-virality">
+                    <h3>Virality Score</h3>
+                    <div class="gauge-container">
+                        <div class="gauge-track">
+                            <div class="gauge-fill" id="virality-bar"></div>
+                        </div>
+                        <span class="gauge-value" id="virality-score"></span>
+                    </div>
+                    <p class="reasoning" id="virality-reasoning"></p>
+                </div>
+
+                <div class="card" id="card-distribution">
+                    <h3>Audience Distribution</h3>
+                    <div class="audience-grid" id="audience-grid"></div>
+                </div>
+
+                <div class="card" id="card-summary">
+                    <h3>Summary</h3>
+                    <p id="summary-text"></p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
