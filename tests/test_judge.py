@@ -6,8 +6,8 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
-from app.main import app
-from app.models import (
+from backend.main import app
+from backend.models import (
     AIGeneratedPrediction,
     AnalysisResponse,
     AudienceSegment,
@@ -121,13 +121,13 @@ class TestModels:
 
 class TestJudgeLogic:
     @pytest.mark.asyncio
-    @patch("app.judge._get_client")
+    @patch("backend.judge._get_client")
     async def test_analyze_text_returns_judge_result(self, mock_get_client):
         mock_get_client.return_value = _make_mock_client(
             _mock_claude_response(SAMPLE_JUDGE_RESULT)
         )
 
-        from app.judge import analyze_text
+        from backend.judge import analyze_text
 
         result = await analyze_text("Some sample text to analyze.")
         assert isinstance(result, JudgeResult)
@@ -135,14 +135,14 @@ class TestJudgeLogic:
         assert 0.0 <= result.ai_generated.probability <= 1.0
 
     @pytest.mark.asyncio
-    @patch("app.judge._get_client")
+    @patch("backend.judge._get_client")
     async def test_analyze_text_passes_text_in_message(self, mock_get_client):
         mock_client = _make_mock_client(
             _mock_claude_response(SAMPLE_JUDGE_RESULT)
         )
         mock_get_client.return_value = mock_client
 
-        from app.judge import analyze_text
+        from backend.judge import analyze_text
 
         await analyze_text("Hello world")
 
@@ -151,7 +151,7 @@ class TestJudgeLogic:
         assert any("Hello world" in block["text"] for block in user_content)
 
     @pytest.mark.asyncio
-    @patch("app.judge._get_client")
+    @patch("backend.judge._get_client")
     async def test_analyze_with_images_puts_images_first(self, mock_get_client):
         mock_client = _make_mock_client(
             _mock_claude_response(
@@ -160,7 +160,7 @@ class TestJudgeLogic:
         )
         mock_get_client.return_value = mock_client
 
-        from app.judge import analyze_with_images
+        from backend.judge import analyze_with_images
 
         images = [{"data": "abc123", "media_type": "image/jpeg"}]
         await analyze_with_images(images, content_type="image")
@@ -181,31 +181,31 @@ class TestJudgeLogic:
         assert image_indices[0] < text_indices[0]
 
     @pytest.mark.asyncio
-    @patch("app.judge._get_client")
+    @patch("backend.judge._get_client")
     async def test_handles_refusal(self, mock_get_client):
         mock_get_client.return_value = _make_mock_client(
             _mock_claude_response(SAMPLE_JUDGE_RESULT, stop_reason="refusal")
         )
 
-        from app.judge import analyze_text
+        from backend.judge import analyze_text
 
         with pytest.raises(ValueError, match="refused"):
             await analyze_text("Bad content")
 
     @pytest.mark.asyncio
-    @patch("app.judge._get_client")
+    @patch("backend.judge._get_client")
     async def test_handles_max_tokens(self, mock_get_client):
         mock_get_client.return_value = _make_mock_client(
             _mock_claude_response(SAMPLE_JUDGE_RESULT, stop_reason="max_tokens")
         )
 
-        from app.judge import analyze_text
+        from backend.judge import analyze_text
 
         with pytest.raises(ValueError, match="truncated"):
             await analyze_text("Very long content")
 
     @pytest.mark.asyncio
-    @patch("app.judge._get_client")
+    @patch("backend.judge._get_client")
     async def test_handles_invalid_json_response(self, mock_get_client):
         """Claude returning invalid JSON should produce a clear ValueError."""
         bad_response = SimpleNamespace(
@@ -219,7 +219,7 @@ class TestJudgeLogic:
             return_value=bad_response
         )
 
-        from app.judge import analyze_text
+        from backend.judge import analyze_text
 
         with pytest.raises(ValueError, match="parse"):
             await analyze_text("test")
@@ -242,7 +242,7 @@ class TestEndpoints:
         resp = client.get("/health")
         assert "x-request-id" in resp.headers
 
-    @patch("app.main.analyze_text")
+    @patch("backend.main.analyze_text")
     def test_text_endpoint_success(self, mock_analyze):
         mock_analyze.return_value = JudgeResult(**SAMPLE_JUDGE_RESULT)
 
@@ -282,28 +282,28 @@ class TestEndpoints:
 
 class TestFrameSampling:
     def test_short_video_gets_few_frames(self):
-        from app.video import _compute_frame_count
+        from backend.video import _compute_frame_count
 
         # 2-second video should get a handful of frames, not 1 or 20
         count = _compute_frame_count(2.0)
         assert 4 <= count <= 8
 
     def test_long_video_capped_at_max(self):
-        from app.video import _compute_frame_count
+        from backend.video import _compute_frame_count
 
         # 1-hour video should hit the max
         count = _compute_frame_count(3600.0)
         assert count == 20
 
     def test_medium_video_moderate_frames(self):
-        from app.video import _compute_frame_count
+        from backend.video import _compute_frame_count
 
         # 30-second video should be in the middle range
         count = _compute_frame_count(30.0)
         assert 10 <= count <= 16
 
     def test_cost_similarity(self):
-        from app.video import _compute_frame_count
+        from backend.video import _compute_frame_count
 
         short = _compute_frame_count(2.0)
         long = _compute_frame_count(3600.0)
@@ -311,27 +311,27 @@ class TestFrameSampling:
         assert long / short <= 5
 
     def test_timestamps_include_start_and_end(self):
-        from app.video import _pick_timestamps
+        from backend.video import _pick_timestamps
 
         ts = _pick_timestamps(10.0, 5)
         assert ts[0] == 0.0
         assert ts[-1] == pytest.approx(9.9, abs=0.2)
 
     def test_timestamps_single_frame(self):
-        from app.video import _pick_timestamps
+        from backend.video import _pick_timestamps
 
         ts = _pick_timestamps(2.0, 1)
         assert ts == [0.0]
 
     def test_timestamps_two_frames(self):
-        from app.video import _pick_timestamps
+        from backend.video import _pick_timestamps
 
         ts = _pick_timestamps(5.0, 2)
         assert ts[0] == 0.0
         assert ts[1] == pytest.approx(4.9, abs=0.2)
 
     def test_timestamps_evenly_spaced(self):
-        from app.video import _pick_timestamps
+        from backend.video import _pick_timestamps
 
         ts = _pick_timestamps(12.0, 4)
         # Should be roughly [0, 3.97, 7.93, 11.9]

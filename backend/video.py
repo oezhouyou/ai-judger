@@ -6,7 +6,7 @@ import time
 
 import cv2
 
-from app.logging_config import get_logger
+from backend.logging_config import get_logger
 
 log = get_logger(__name__)
 

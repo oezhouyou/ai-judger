@@ -16,13 +16,13 @@ test:
 	docker compose run --rm backend pytest tests/ -v
 
 dev:
-	uvicorn app.main:app --reload
+	uvicorn backend.main:app --reload
 
 lint:
-	ruff check app/ tests/
+	ruff check backend/ tests/
 
 format:
-	ruff format app/ tests/
+	ruff format backend/ tests/
 
 coverage:
-	pytest --cov=app --cov-report=term-missing tests/
+	pytest --cov=backend --cov-report=term-missing tests/

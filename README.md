@@ -41,7 +41,7 @@ pip install -r requirements-dev.txt
 cp .env.example .env
 # Edit .env and set ANTHROPIC_API_KEY
 
-uvicorn app.main:app --reload
+uvicorn backend.main:app --reload
 ```
 
 The API will be available at `http://localhost:8000`. Interactive docs at `http://localhost:8000/docs`.

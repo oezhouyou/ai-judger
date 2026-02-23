@@ -24,15 +24,15 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["app"]
+known-first-party = ["backend"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 
 [tool.coverage.run]
-source = ["app"]
-omit = ["app/__init__.py"]
+source = ["backend"]
+omit = ["backend/__init__.py"]
 
 [tool.coverage.report]
 show_missing = true

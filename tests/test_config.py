@@ -8,7 +8,7 @@ from pydantic import ValidationError
 class TestSettings:
     def test_defaults_applied(self):
         """Settings should load with sensible defaults when only API key is set."""
-        from app.config import Settings
+        from backend.config import Settings
 
         # Use _env_file=None to bypass the .env file and test pure defaults
         s = Settings(
@@ -26,7 +26,7 @@ class TestSettings:
         """Missing ANTHROPIC_API_KEY should raise a clear error."""
         env = {"ANTHROPIC_API_KEY": ""}
         with patch.dict(os.environ, env, clear=False):
-            from app.config import Settings
+            from backend.config import Settings
 
             with pytest.raises(ValidationError, match="ANTHROPIC_API_KEY"):
                 Settings()
@@ -35,7 +35,7 @@ class TestSettings:
         """Placeholder API key should raise a clear error."""
         env = {"ANTHROPIC_API_KEY": "sk-ant-xxxxxxxxxxxxx"}
         with patch.dict(os.environ, env, clear=False):
-            from app.config import Settings
+            from backend.config import Settings
 
             with pytest.raises(ValidationError, match="placeholder"):
                 Settings()
@@ -47,14 +47,14 @@ class TestSettings:
             "LOG_LEVEL": "verbose",
         }
         with patch.dict(os.environ, env, clear=False):
-            from app.config import Settings
+            from backend.config import Settings
 
             with pytest.raises(ValidationError, match="log_level"):
                 Settings()
 
     def test_cors_origins_comma_separated(self):
         """CORS_ORIGINS should accept comma-separated values."""
-        from app.config import Settings
+        from backend.config import Settings
 
         s = Settings(
             _env_file=None,

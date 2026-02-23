@@ -11,9 +11,9 @@ from tenacity import (
     wait_exponential,
 )
 
-from app.config import get_settings
-from app.logging_config import get_logger
-from app.models import JudgeResult
+from backend.config import get_settings
+from backend.logging_config import get_logger
+from backend.models import JudgeResult
 
 log = get_logger(__name__)
 

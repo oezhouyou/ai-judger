@@ -16,7 +16,7 @@ RUN pip install --no-cache-dir -r requirements-dev.txt
 RUN groupadd --gid 1000 appuser && \
     useradd --uid 1000 --gid appuser --create-home appuser
 
-COPY app/ ./app/
+COPY backend/ ./backend/
 COPY tests/ ./tests/
 COPY pyproject.toml .
 
@@ -28,4 +28,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -8,12 +8,12 @@ from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.config import get_settings
-from app.judge import analyze_text, analyze_with_images
-from app.logging_config import get_logger, setup_logging
-from app.middleware import RequestIDMiddleware
-from app.models import AnalysisResponse, TextAnalysisRequest
-from app.video import extract_frames
+from backend.config import get_settings
+from backend.judge import analyze_text, analyze_with_images
+from backend.logging_config import get_logger, setup_logging
+from backend.middleware import RequestIDMiddleware
+from backend.models import AnalysisResponse, TextAnalysisRequest
+from backend.video import extract_frames
 
 log = get_logger(__name__)
 
