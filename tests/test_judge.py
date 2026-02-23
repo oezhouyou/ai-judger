@@ -1,6 +1,6 @@
 import json
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -53,7 +53,18 @@ SAMPLE_JUDGE_RESULT = {
 def _mock_claude_response(result_dict: dict, stop_reason: str = "end_turn"):
     """Build a mock response object matching the Anthropic SDK shape."""
     content_block = SimpleNamespace(text=json.dumps(result_dict))
-    return SimpleNamespace(content=[content_block], stop_reason=stop_reason)
+    usage = SimpleNamespace(input_tokens=100, output_tokens=200)
+    return SimpleNamespace(
+        content=[content_block], stop_reason=stop_reason, usage=usage
+    )
+
+
+def _make_mock_client(response):
+    """Create a mock AsyncAnthropic client returning the given response."""
+    mock = MagicMock()
+    mock.messages = AsyncMock()
+    mock.messages.create = AsyncMock(return_value=response)
+    return mock
 
 
 # ---------------------------------------------------------------------------
@@ -110,11 +121,10 @@ class TestModels:
 
 class TestJudgeLogic:
     @pytest.mark.asyncio
-    @patch("app.judge.client")
-    async def test_analyze_text_returns_judge_result(self, mock_client):
-        mock_client.messages = AsyncMock()
-        mock_client.messages.create = AsyncMock(
-            return_value=_mock_claude_response(SAMPLE_JUDGE_RESULT)
+    @patch("app.judge._get_client")
+    async def test_analyze_text_returns_judge_result(self, mock_get_client):
+        mock_get_client.return_value = _make_mock_client(
+            _mock_claude_response(SAMPLE_JUDGE_RESULT)
         )
 
         from app.judge import analyze_text
@@ -125,12 +135,12 @@ class TestJudgeLogic:
         assert 0.0 <= result.ai_generated.probability <= 1.0
 
     @pytest.mark.asyncio
-    @patch("app.judge.client")
-    async def test_analyze_text_passes_text_in_message(self, mock_client):
-        mock_client.messages = AsyncMock()
-        mock_client.messages.create = AsyncMock(
-            return_value=_mock_claude_response(SAMPLE_JUDGE_RESULT)
+    @patch("app.judge._get_client")
+    async def test_analyze_text_passes_text_in_message(self, mock_get_client):
+        mock_client = _make_mock_client(
+            _mock_claude_response(SAMPLE_JUDGE_RESULT)
         )
+        mock_get_client.return_value = mock_client
 
         from app.judge import analyze_text
 
@@ -141,14 +151,14 @@ class TestJudgeLogic:
         assert any("Hello world" in block["text"] for block in user_content)
 
     @pytest.mark.asyncio
-    @patch("app.judge.client")
-    async def test_analyze_with_images_puts_images_first(self, mock_client):
-        mock_client.messages = AsyncMock()
-        mock_client.messages.create = AsyncMock(
-            return_value=_mock_claude_response(
+    @patch("app.judge._get_client")
+    async def test_analyze_with_images_puts_images_first(self, mock_get_client):
+        mock_client = _make_mock_client(
+            _mock_claude_response(
                 {**SAMPLE_JUDGE_RESULT, "content_type": "image"}
             )
         )
+        mock_get_client.return_value = mock_client
 
         from app.judge import analyze_with_images
 
@@ -171,13 +181,10 @@ class TestJudgeLogic:
         assert image_indices[0] < text_indices[0]
 
     @pytest.mark.asyncio
-    @patch("app.judge.client")
-    async def test_handles_refusal(self, mock_client):
-        mock_client.messages = AsyncMock()
-        mock_client.messages.create = AsyncMock(
-            return_value=_mock_claude_response(
-                SAMPLE_JUDGE_RESULT, stop_reason="refusal"
-            )
+    @patch("app.judge._get_client")
+    async def test_handles_refusal(self, mock_get_client):
+        mock_get_client.return_value = _make_mock_client(
+            _mock_claude_response(SAMPLE_JUDGE_RESULT, stop_reason="refusal")
         )
 
         from app.judge import analyze_text
@@ -186,19 +193,36 @@ class TestJudgeLogic:
             await analyze_text("Bad content")
 
     @pytest.mark.asyncio
-    @patch("app.judge.client")
-    async def test_handles_max_tokens(self, mock_client):
-        mock_client.messages = AsyncMock()
-        mock_client.messages.create = AsyncMock(
-            return_value=_mock_claude_response(
-                SAMPLE_JUDGE_RESULT, stop_reason="max_tokens"
-            )
+    @patch("app.judge._get_client")
+    async def test_handles_max_tokens(self, mock_get_client):
+        mock_get_client.return_value = _make_mock_client(
+            _mock_claude_response(SAMPLE_JUDGE_RESULT, stop_reason="max_tokens")
         )
 
         from app.judge import analyze_text
 
         with pytest.raises(ValueError, match="truncated"):
             await analyze_text("Very long content")
+
+    @pytest.mark.asyncio
+    @patch("app.judge._get_client")
+    async def test_handles_invalid_json_response(self, mock_get_client):
+        """Claude returning invalid JSON should produce a clear ValueError."""
+        bad_response = SimpleNamespace(
+            content=[SimpleNamespace(text="not valid json {{{")],
+            stop_reason="end_turn",
+            usage=SimpleNamespace(input_tokens=50, output_tokens=10),
+        )
+        mock_get_client.return_value = _make_mock_client(bad_response)
+        # Override the mock to return the bad response directly
+        mock_get_client.return_value.messages.create = AsyncMock(
+            return_value=bad_response
+        )
+
+        from app.judge import analyze_text
+
+        with pytest.raises(ValueError, match="parse"):
+            await analyze_text("test")
 
 
 # ---------------------------------------------------------------------------
@@ -210,7 +234,13 @@ class TestEndpoints:
     def test_health_endpoint(self):
         resp = client.get("/health")
         assert resp.status_code == 200
-        assert resp.json() == {"status": "ok"}
+        body = resp.json()
+        assert body["status"] == "ok"
+        assert "version" in body
+
+    def test_health_returns_request_id(self):
+        resp = client.get("/health")
+        assert "x-request-id" in resp.headers
 
     @patch("app.main.analyze_text")
     def test_text_endpoint_success(self, mock_analyze):
@@ -308,4 +338,3 @@ class TestFrameSampling:
         gaps = [ts[i + 1] - ts[i] for i in range(len(ts) - 1)]
         # All gaps should be approximately equal
         assert max(gaps) - min(gaps) < 0.1
-

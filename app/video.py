@@ -2,8 +2,16 @@ import base64
 import math
 import os
 import tempfile
+import time
 
 import cv2
+
+from app.logging_config import get_logger
+
+log = get_logger(__name__)
+
+# Maximum wall-clock seconds for the extraction loop.
+_EXTRACTION_TIMEOUT = 30
 
 
 def _compute_frame_count(duration: float, max_frames: int = 20) -> int:
@@ -48,7 +56,7 @@ def _pick_timestamps(duration: float, n: int) -> list[float]:
 
 async def extract_frames(
     video_bytes: bytes,
-    max_frames: int = 10,
+    max_frames: int = 20,
     target_max_dimension: int = 1024,
 ) -> list[dict]:
     """Extract key frames from video bytes for Claude vision analysis.
@@ -88,8 +96,27 @@ async def extract_frames(
         n_frames = _compute_frame_count(duration, max_frames)
         timestamps = _pick_timestamps(duration, n_frames)
 
+        log.info(
+            "extracting_frames",
+            duration_s=round(duration, 2),
+            fps=round(fps, 1),
+            n_frames=n_frames,
+            target_max_dim=target_max_dimension,
+        )
+
         frames = []
+        t0 = time.monotonic()
         for ts in timestamps:
+            # Guard against corrupted videos that hang on decode
+            if time.monotonic() - t0 > _EXTRACTION_TIMEOUT:
+                log.warning(
+                    "extraction_timeout",
+                    extracted=len(frames),
+                    target=n_frames,
+                    timeout_s=_EXTRACTION_TIMEOUT,
+                )
+                break
+
             cap.set(cv2.CAP_PROP_POS_MSEC, ts * 1000)
             ret, frame = cap.read()
             if not ret:
@@ -123,6 +150,13 @@ async def extract_frames(
             )
 
         cap.release()
+
+        elapsed_ms = round((time.monotonic() - t0) * 1000)
+        log.info(
+            "frames_extracted",
+            count=len(frames),
+            elapsed_ms=elapsed_ms,
+        )
 
         if not frames:
             raise ValueError("Could not extract any frames from video.")

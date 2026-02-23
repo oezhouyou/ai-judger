@@ -20,6 +20,11 @@
 
     var activeTab = "text";
     var selectedFile = null;
+    var currentController = null; // AbortController for in-flight request
+
+    // Timeouts in milliseconds
+    var TEXT_TIMEOUT_MS = 30000;
+    var VIDEO_TIMEOUT_MS = 120000;
 
     /* ---- Tab switching ---- */
 
@@ -97,37 +102,57 @@
     /* ---- Submit ---- */
 
     submitBtn.addEventListener("click", function () {
+        if (submitBtn.disabled) return;
+
         hideError();
         hideResults();
+
+        // Cancel any in-flight request
+        if (currentController) {
+            currentController.abort();
+        }
 
         if (activeTab === "text") {
             var text = textInput.value.trim();
             if (!text) { showError("Please enter some text to analyze."); return; }
-            submitJSON("/api/analyze/text", { text: text });
+            submitJSON("/api/analyze/text", { text: text }, TEXT_TIMEOUT_MS);
         } else if (activeTab === "video") {
             if (!selectedFile) { showError("Please select a video file."); return; }
-            submitVideo("/api/analyze/video", selectedFile);
+            submitVideo("/api/analyze/video", selectedFile, VIDEO_TIMEOUT_MS);
         }
     });
 
-    function submitJSON(endpoint, body) {
+    function submitJSON(endpoint, body, timeoutMs) {
+        currentController = new AbortController();
+        var timeoutId = setTimeout(function () { currentController.abort(); }, timeoutMs);
+
         showLoading();
         fetch(endpoint, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body)
+            body: JSON.stringify(body),
+            signal: currentController.signal
         })
         .then(handleResponse)
-        .catch(handleNetworkError);
+        .catch(handleNetworkError)
+        .finally(function () { clearTimeout(timeoutId); });
     }
 
-    function submitVideo(endpoint, file) {
+    function submitVideo(endpoint, file, timeoutMs) {
+        currentController = new AbortController();
+        var timeoutId = setTimeout(function () { currentController.abort(); }, timeoutMs);
+
         showLoading();
         var formData = new FormData();
         formData.append("file", file);
-        fetch(endpoint, { method: "POST", body: formData })
+        fetch(endpoint, {
+            method: "POST",
+            body: formData,
+            signal: currentController.signal
+        })
             .then(handleResponse)
-            .catch(handleNetworkError);
+            .catch(handleNetworkError)
+            .finally(function () { clearTimeout(timeoutId); });
     }
 
     function handleResponse(resp) {
@@ -144,6 +169,10 @@
 
     function handleNetworkError(err) {
         hideLoading();
+        if (err.name === "AbortError") {
+            showError("Request timed out. The content may be too large or the server is busy.");
+            return;
+        }
         showError("Network error: " + err.message);
     }
 

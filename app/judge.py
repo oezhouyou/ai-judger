@@ -1,16 +1,41 @@
+from __future__ import annotations
+
 import json
-import os
+import time
 
-from anthropic import AsyncAnthropic
-from dotenv import load_dotenv
+from anthropic import APIStatusError, AsyncAnthropic
+from tenacity import (
+    retry,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_exponential,
+)
 
+from app.config import get_settings
+from app.logging_config import get_logger
 from app.models import JudgeResult
 
-load_dotenv()
+log = get_logger(__name__)
 
-client = AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+# --------------------------------------------------------------------------
+# Client — lazy singleton
+# --------------------------------------------------------------------------
 
-CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-5-20250929")
+_client: AsyncAnthropic | None = None
+
+
+def _get_client() -> AsyncAnthropic:
+    """Return (and cache) an AsyncAnthropic client."""
+    global _client
+    if _client is None:
+        settings = get_settings()
+        _client = AsyncAnthropic(api_key=settings.anthropic_api_key)
+    return _client
+
+
+# --------------------------------------------------------------------------
+# Prompt & schema
+# --------------------------------------------------------------------------
 
 SYSTEM_PROMPT = """\
 You are an expert content analyst specializing in digital media evaluation. \
@@ -51,7 +76,6 @@ resonate. For each, explain WHY it would appeal to them.
 Be specific in your reasoning — avoid vague or generic explanations. \
 Ground assessments in observable features of the content."""
 
-# JSON schema for Claude structured output (matches JudgeResult)
 JUDGE_RESULT_SCHEMA = {
     "type": "object",
     "properties": {
@@ -117,10 +141,34 @@ JUDGE_RESULT_SCHEMA = {
 }
 
 
+# --------------------------------------------------------------------------
+# Retry predicate — only retry transient server-side errors
+# --------------------------------------------------------------------------
+
+def _is_retryable(exc: BaseException) -> bool:
+    if isinstance(exc, APIStatusError) and exc.status_code in (429, 500, 502, 503, 529):
+        return True
+    return False
+
+
+# --------------------------------------------------------------------------
+# Core call
+# --------------------------------------------------------------------------
+
+@retry(
+    retry=retry_if_exception(_is_retryable),
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=15),
+    reraise=True,
+)
 async def _call_claude(content: list[dict]) -> JudgeResult:
     """Send content blocks to Claude and return a parsed JudgeResult."""
+    settings = get_settings()
+    client = _get_client()
+
+    t0 = time.monotonic()
     response = await client.messages.create(
-        model=CLAUDE_MODEL,
+        model=settings.claude_model,
         max_tokens=4096,
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": content}],
@@ -130,6 +178,16 @@ async def _call_claude(content: list[dict]) -> JudgeResult:
                 "schema": JUDGE_RESULT_SCHEMA,
             }
         },
+    )
+    elapsed_ms = round((time.monotonic() - t0) * 1000)
+
+    log.info(
+        "claude_response",
+        model=settings.claude_model,
+        stop_reason=response.stop_reason,
+        latency_ms=elapsed_ms,
+        input_tokens=getattr(response.usage, "input_tokens", None),
+        output_tokens=getattr(response.usage, "output_tokens", None),
     )
 
     if response.stop_reason == "refusal":
@@ -143,8 +201,18 @@ async def _call_claude(content: list[dict]) -> JudgeResult:
         )
 
     raw = response.content[0].text
-    return JudgeResult(**json.loads(raw))
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as e:
+        log.error("json_parse_failed", raw_preview=raw[:200], error=str(e))
+        raise ValueError("Failed to parse Claude response as JSON.") from e
 
+    return JudgeResult(**data)
+
+
+# --------------------------------------------------------------------------
+# Public API
+# --------------------------------------------------------------------------
 
 async def analyze_text(text: str) -> JudgeResult:
     """Analyze text content."""
@@ -166,7 +234,6 @@ async def analyze_with_images(
 
     Each image dict must have "data" (base64) and "media_type" keys.
     """
-    # Claude works best with images before text
     content: list[dict] = []
     for i, img in enumerate(images):
         label = f"Frame {i + 1}:" if content_type == "video" else f"Image {i + 1}:"

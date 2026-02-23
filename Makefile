@@ -1,4 +1,4 @@
-.PHONY: build up down logs test dev
+.PHONY: build up down logs test dev lint format coverage
 
 build:
 	docker compose build
@@ -17,3 +17,12 @@ test:
 
 dev:
 	uvicorn app.main:app --reload
+
+lint:
+	ruff check app/ tests/
+
+format:
+	ruff format app/ tests/
+
+coverage:
+	pytest --cov=app --cov-report=term-missing tests/
