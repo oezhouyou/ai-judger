@@ -1,14 +1,10 @@
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field
 
 
 class TextAnalysisRequest(BaseModel):
     text: str = Field(
         ..., min_length=1, max_length=50000, description="Text content to analyze"
     )
-
-
-class URLAnalysisRequest(BaseModel):
-    url: HttpUrl = Field(..., description="URL to fetch and analyze")
 
 
 class AIGeneratedPrediction(BaseModel):

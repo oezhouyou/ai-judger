@@ -244,6 +244,3 @@ class TestEndpoints:
         assert resp.status_code == 400
         assert "Unsupported file type" in resp.json()["detail"]
 
-    def test_url_endpoint_invalid_url(self):
-        resp = client.post("/analyze/url", json={"url": "not-a-url"})
-        assert resp.status_code == 422

@@ -17,8 +17,6 @@
     var fileNameSpan = document.getElementById("file-name");
     var clearFileBtn = document.getElementById("clear-file");
 
-    var urlInput = document.getElementById("url-input");
-
     var activeTab = "text";
     var selectedFile = null;
 
@@ -108,10 +106,6 @@
         } else if (activeTab === "video") {
             if (!selectedFile) { showError("Please select a video file."); return; }
             submitVideo("/api/analyze/video", selectedFile);
-        } else if (activeTab === "url") {
-            var url = urlInput.value.trim();
-            if (!url) { showError("Please enter a URL."); return; }
-            submitJSON("/api/analyze/url", { url: url });
         }
     });
 
