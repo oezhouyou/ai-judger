@@ -244,3 +244,68 @@ class TestEndpoints:
         assert resp.status_code == 400
         assert "Unsupported file type" in resp.json()["detail"]
 
+
+# ---------------------------------------------------------------------------
+# Video frame sampling tests
+# ---------------------------------------------------------------------------
+
+
+class TestFrameSampling:
+    def test_short_video_gets_few_frames(self):
+        from app.video import _compute_frame_count
+
+        # 2-second video should get a handful of frames, not 1 or 20
+        count = _compute_frame_count(2.0)
+        assert 4 <= count <= 8
+
+    def test_long_video_capped_at_max(self):
+        from app.video import _compute_frame_count
+
+        # 1-hour video should hit the max
+        count = _compute_frame_count(3600.0)
+        assert count == 20
+
+    def test_medium_video_moderate_frames(self):
+        from app.video import _compute_frame_count
+
+        # 30-second video should be in the middle range
+        count = _compute_frame_count(30.0)
+        assert 10 <= count <= 16
+
+    def test_cost_similarity(self):
+        from app.video import _compute_frame_count
+
+        short = _compute_frame_count(2.0)
+        long = _compute_frame_count(3600.0)
+        # The ratio between short and long should be no more than 5x
+        assert long / short <= 5
+
+    def test_timestamps_include_start_and_end(self):
+        from app.video import _pick_timestamps
+
+        ts = _pick_timestamps(10.0, 5)
+        assert ts[0] == 0.0
+        assert ts[-1] == pytest.approx(9.9, abs=0.2)
+
+    def test_timestamps_single_frame(self):
+        from app.video import _pick_timestamps
+
+        ts = _pick_timestamps(2.0, 1)
+        assert ts == [0.0]
+
+    def test_timestamps_two_frames(self):
+        from app.video import _pick_timestamps
+
+        ts = _pick_timestamps(5.0, 2)
+        assert ts[0] == 0.0
+        assert ts[1] == pytest.approx(4.9, abs=0.2)
+
+    def test_timestamps_evenly_spaced(self):
+        from app.video import _pick_timestamps
+
+        ts = _pick_timestamps(12.0, 4)
+        # Should be roughly [0, 3.97, 7.93, 11.9]
+        gaps = [ts[i + 1] - ts[i] for i in range(len(ts) - 1)]
+        # All gaps should be approximately equal
+        assert max(gaps) - min(gaps) < 0.1
+

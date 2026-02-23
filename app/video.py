@@ -1,17 +1,61 @@
 import base64
+import math
 import os
 import tempfile
 
 import cv2
 
 
+def _compute_frame_count(duration: float, max_frames: int = 20) -> int:
+    """Decide how many frames to extract based on video duration.
+
+    Uses a logarithmic curve so that:
+      - A 1-second video  -> 6 frames
+      - A 5-second video  -> 10 frames
+      - A 30-second video -> 15 frames
+      - A 5-minute video  -> 20 frames (capped)
+      - A 60-minute video -> 20 frames (capped)
+
+    This keeps Claude API cost roughly constant regardless of video length.
+    """
+    if duration <= 0:
+        return 1
+    # log2 curve: grows fast at first, then flattens
+    count = int(4 + math.log2(1 + duration) * 2.4)
+    return max(4, min(count, max_frames))
+
+
+def _pick_timestamps(duration: float, n: int) -> list[float]:
+    """Pick n evenly-spaced timestamps, always including start and end.
+
+    For n=1, returns [0.0].
+    For n=2, returns [0.0, duration - small_offset].
+    For n>=3, returns first frame, evenly-spaced interior frames, last frame.
+    """
+    if n <= 1:
+        return [0.0]
+
+    # Slight offset from the very end to avoid a blank trailing frame
+    end = max(0.0, duration - 0.1)
+
+    if n == 2:
+        return [0.0, end]
+
+    # Interior frames evenly distributed between start and end
+    step = end / (n - 1)
+    return [round(i * step, 3) for i in range(n)]
+
+
 async def extract_frames(
     video_bytes: bytes,
     max_frames: int = 10,
-    interval_seconds: float = 2.0,
     target_max_dimension: int = 1024,
 ) -> list[dict]:
     """Extract key frames from video bytes for Claude vision analysis.
+
+    Frame count adapts to video duration via a logarithmic curve so that
+    short clips (2 s) and long videos (60 min) produce a similar number
+    of frames (and therefore similar API cost).
 
     Returns a list of dicts, each containing:
         - "data": base64-encoded JPEG string
@@ -41,13 +85,8 @@ async def extract_frames(
             cap.release()
             raise ValueError("Could not determine video duration.")
 
-        # Distribute frames evenly across the video
-        actual_interval = max(interval_seconds, duration / max_frames)
-        timestamps = [
-            i * actual_interval
-            for i in range(max_frames)
-            if i * actual_interval < duration
-        ]
+        n_frames = _compute_frame_count(duration, max_frames)
+        timestamps = _pick_timestamps(duration, n_frames)
 
         frames = []
         for ts in timestamps:
