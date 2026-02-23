@@ -6,6 +6,7 @@
     var submitBtn = document.getElementById("submit-btn");
     var loadingEl = document.getElementById("loading");
     var errorEl = document.getElementById("error");
+    var errorText = document.getElementById("error-text");
     var resultsEl = document.getElementById("results");
 
     var textInput = document.getElementById("text-input");
@@ -40,7 +41,7 @@
     /* ---- Character count ---- */
 
     textInput.addEventListener("input", function () {
-        charCount.textContent = textInput.value.length;
+        charCount.textContent = textInput.value.length.toLocaleString();
     });
 
     /* ---- Drag & drop ---- */
@@ -150,61 +151,78 @@
 
     function showLoading() { loadingEl.hidden = false; submitBtn.disabled = true; }
     function hideLoading() { loadingEl.hidden = true; submitBtn.disabled = false; }
-    function showError(msg) { errorEl.textContent = msg; errorEl.hidden = false; }
+    function showError(msg) { errorText.textContent = msg; errorEl.hidden = false; }
     function hideError() { errorEl.hidden = true; }
     function hideResults() { resultsEl.hidden = true; }
 
     /* ---- Render results ---- */
 
+    var CIRCUMFERENCE = 2 * Math.PI * 52; // matches r=52 in SVG
+
     function renderResults(data) {
         var r = data.result;
 
-        // AI-Generated prediction
+        // Content type badge
+        var typeEl = document.getElementById("results-type");
+        typeEl.textContent = r.content_type;
+
+        // ---- AI Detection ----
         var prob = r.ai_generated.probability;
         var label = r.ai_generated.label;
-        var barEl = document.getElementById("ai-bar");
+        var ringFill = document.getElementById("ai-ring-fill");
+        var ringPct = document.getElementById("ai-ring-pct");
         var labelEl = document.getElementById("ai-label");
-        var probEl = document.getElementById("ai-probability");
         var reasonEl = document.getElementById("ai-reasoning");
 
-        barEl.style.width = (prob * 100).toFixed(0) + "%";
-        if (label === "ai_generated") {
-            barEl.style.background = "#ef4444";
-            labelEl.style.background = "rgba(239, 68, 68, 0.15)";
-            labelEl.style.color = "#ef4444";
-            labelEl.textContent = "AI Generated";
-        } else if (label === "human_generated") {
-            barEl.style.background = "#22c55e";
-            labelEl.style.background = "rgba(34, 197, 94, 0.15)";
-            labelEl.style.color = "#22c55e";
-            labelEl.textContent = "Human Generated";
-        } else {
-            barEl.style.background = "#eab308";
-            labelEl.style.background = "rgba(234, 179, 8, 0.15)";
-            labelEl.style.color = "#eab308";
-            labelEl.textContent = "Uncertain";
-        }
-        probEl.textContent = (prob * 100).toFixed(0) + "% probability";
+        // Animate ring
+        var offset = CIRCUMFERENCE * (1 - prob);
+        ringFill.style.strokeDashoffset = offset;
+
+        ringPct.textContent = Math.round(prob * 100) + "%";
         reasonEl.textContent = r.ai_generated.reasoning;
 
-        // Virality score
+        if (label === "ai_generated") {
+            ringFill.style.stroke = "#ef4444";
+            ringPct.style.color = "#ef4444";
+            labelEl.style.background = "rgba(239, 68, 68, 0.12)";
+            labelEl.style.color = "#fca5a5";
+            labelEl.textContent = "AI Generated";
+        } else if (label === "human_generated") {
+            ringFill.style.stroke = "#22c55e";
+            ringPct.style.color = "#22c55e";
+            labelEl.style.background = "rgba(34, 197, 94, 0.12)";
+            labelEl.style.color = "#86efac";
+            labelEl.textContent = "Human Generated";
+        } else {
+            ringFill.style.stroke = "#f59e0b";
+            ringPct.style.color = "#f59e0b";
+            labelEl.style.background = "rgba(245, 158, 11, 0.12)";
+            labelEl.style.color = "#fcd34d";
+            labelEl.textContent = "Uncertain";
+        }
+
+        // ---- Virality ----
         var score = r.virality.score;
         var viralBar = document.getElementById("virality-bar");
         var viralScore = document.getElementById("virality-score");
         var viralReason = document.getElementById("virality-reasoning");
 
         viralBar.style.width = score + "%";
-        if (score < 30) {
-            viralBar.style.background = "#6b7280";
-        } else if (score < 60) {
-            viralBar.style.background = "#eab308";
-        } else {
-            viralBar.style.background = "#22c55e";
-        }
         viralScore.textContent = score;
         viralReason.textContent = r.virality.reasoning;
 
-        // Distribution
+        if (score < 30) {
+            viralBar.style.background = "#71717a";
+            viralScore.style.color = "#a1a1aa";
+        } else if (score < 60) {
+            viralBar.style.background = "#f59e0b";
+            viralScore.style.color = "#f59e0b";
+        } else {
+            viralBar.style.background = "#22c55e";
+            viralScore.style.color = "#22c55e";
+        }
+
+        // ---- Distribution ----
         var grid = document.getElementById("audience-grid");
         grid.innerHTML = "";
         r.distribution.segments.forEach(function (seg) {
@@ -215,7 +233,7 @@
             grid.appendChild(card);
         });
 
-        // Summary
+        // ---- Summary ----
         document.getElementById("summary-text").textContent = r.summary;
 
         resultsEl.hidden = false;

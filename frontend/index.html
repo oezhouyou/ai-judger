@@ -4,92 +4,173 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Judge Agent</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>AI Judge Agent</h1>
-            <p class="subtitle">Analyze content for AI generation, virality potential, and audience distribution</p>
-        </header>
-
-        <main>
-            <nav class="tabs" role="tablist">
-                <button class="tab active" data-tab="text" role="tab" aria-selected="true">Text</button>
-                <button class="tab" data-tab="video" role="tab" aria-selected="false">Video</button>
-            </nav>
-
-            <!-- Text input -->
-            <div class="tab-panel active" id="panel-text" role="tabpanel">
-                <textarea id="text-input" placeholder="Paste text content to analyze..." rows="8" maxlength="50000"></textarea>
-                <div class="char-count"><span id="char-count">0</span> / 50,000</div>
-            </div>
-
-            <!-- Video upload -->
-            <div class="tab-panel" id="panel-video" role="tabpanel">
-                <div class="drop-zone" id="drop-zone">
-                    <input type="file" id="video-input" accept="video/mp4,video/avi,video/quicktime,video/x-matroska,video/x-msvideo" hidden>
-                    <div class="drop-zone-text">
-                        <span class="drop-icon">&#127916;</span>
-                        <p>Drag &amp; drop a video file here</p>
-                        <p class="drop-hint">or click to browse (mp4, avi, mov, mkv &mdash; max 50 MB)</p>
-                    </div>
-                    <div class="file-selected" id="file-selected" hidden>
-                        <span id="file-name"></span>
-                        <button id="clear-file" type="button">&times;</button>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-inner">
+                <div class="logo">
+                    <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="2" x2="12" y2="22"/>
+                        <line x1="4" y1="7" x2="20" y2="7"/>
+                        <path d="M4 7l-2 8h8L8 7"/>
+                        <path d="M16 7l-2 8h8l-2-8"/>
+                        <path d="M2 15c0 1.1 1.8 2 4 2s4-.9 4-2"/>
+                        <path d="M14 15c0 1.1 1.8 2 4 2s4-.9 4-2"/>
+                        <line x1="8" y1="22" x2="16" y2="22"/>
+                    </svg>
+                    <div>
+                        <h1 class="logo-text">Judge Agent</h1>
+                        <p class="logo-sub">AI-powered content analysis</p>
                     </div>
                 </div>
+                <span class="header-badge">Powered by Claude</span>
             </div>
+        </header>
 
-            <button id="submit-btn" type="button">Analyze</button>
+        <div class="container">
+            <!-- Input Section -->
+            <section class="input-section">
+                <nav class="tabs" role="tablist">
+                    <button class="tab active" data-tab="text" role="tab" aria-selected="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                        Text
+                    </button>
+                    <button class="tab" data-tab="video" role="tab" aria-selected="false">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                        Video
+                    </button>
+                </nav>
+
+                <!-- Text panel -->
+                <div class="tab-panel active" id="panel-text" role="tabpanel">
+                    <div class="textarea-wrap">
+                        <textarea id="text-input" placeholder="Paste or type content to analyze..." rows="10" maxlength="50000"></textarea>
+                        <div class="textarea-footer">
+                            <span class="char-count"><span id="char-count">0</span> / 50,000 characters</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Video panel -->
+                <div class="tab-panel" id="panel-video" role="tabpanel">
+                    <div class="drop-zone" id="drop-zone">
+                        <input type="file" id="video-input" accept="video/mp4,video/avi,video/quicktime,video/x-matroska,video/x-msvideo" hidden>
+                        <div class="drop-zone-text">
+                            <div class="drop-icon-wrap">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            </div>
+                            <p class="drop-title">Upload a video file</p>
+                            <p class="drop-hint">Drag and drop or <span class="drop-browse">browse</span></p>
+                            <p class="drop-formats">MP4, AVI, MOV, MKV up to 50 MB</p>
+                        </div>
+                        <div class="file-selected" id="file-selected" hidden>
+                            <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+                            <span id="file-name"></span>
+                            <button id="clear-file" type="button" title="Remove file">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <button id="submit-btn" type="button">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    Analyze Content
+                </button>
+            </section>
 
             <!-- Loading -->
             <div id="loading" class="loading" hidden>
-                <div class="spinner"></div>
-                <p>Analyzing content with Claude...</p>
+                <div class="loading-inner">
+                    <div class="pulse-ring"></div>
+                    <div class="pulse-dot"></div>
+                </div>
+                <p class="loading-text">Analyzing with Claude...</p>
+                <p class="loading-sub">This may take a few seconds</p>
             </div>
 
             <!-- Error -->
-            <div id="error" class="error-banner" hidden></div>
+            <div id="error" class="error-banner" hidden>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span id="error-text"></span>
+            </div>
 
             <!-- Results -->
             <section id="results" class="results" hidden>
-                <h2>Analysis Results</h2>
-
-                <div class="card" id="card-ai">
-                    <h3>AI-Generated Prediction</h3>
-                    <div class="probability-bar-container">
-                        <div class="probability-bar" id="ai-bar"></div>
-                    </div>
-                    <div class="ai-meta">
-                        <span class="label-badge" id="ai-label"></span>
-                        <span class="probability-value" id="ai-probability"></span>
-                    </div>
-                    <p class="reasoning" id="ai-reasoning"></p>
+                <div class="results-header">
+                    <h2>Analysis Results</h2>
+                    <span class="results-type" id="results-type"></span>
                 </div>
 
-                <div class="card" id="card-virality">
-                    <h3>Virality Score</h3>
-                    <div class="gauge-container">
-                        <div class="gauge-track">
-                            <div class="gauge-fill" id="virality-bar"></div>
+                <!-- AI Detection Card -->
+                <div class="card card--ai" id="card-ai">
+                    <div class="card-header">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.58-3.25 3.93L12 22"/><path d="M12 2a4 4 0 0 0-4 4c0 1.95 1.4 3.58 3.25 3.93"/></svg>
+                        <h3>AI Detection</h3>
+                    </div>
+                    <div class="ai-score-row">
+                        <div class="ai-ring-wrap">
+                            <svg class="ai-ring" viewBox="0 0 120 120">
+                                <circle class="ai-ring-bg" cx="60" cy="60" r="52" />
+                                <circle class="ai-ring-fill" id="ai-ring-fill" cx="60" cy="60" r="52" />
+                            </svg>
+                            <div class="ai-ring-label">
+                                <span class="ai-ring-pct" id="ai-ring-pct">0%</span>
+                                <span class="ai-ring-sub" id="ai-ring-sub">AI prob.</span>
+                            </div>
                         </div>
-                        <span class="gauge-value" id="virality-score"></span>
+                        <div class="ai-detail">
+                            <span class="label-badge" id="ai-label"></span>
+                            <p class="reasoning" id="ai-reasoning"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Virality Card -->
+                <div class="card card--virality" id="card-virality">
+                    <div class="card-header">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                        <h3>Virality Potential</h3>
+                    </div>
+                    <div class="virality-row">
+                        <span class="virality-number" id="virality-score">0</span>
+                        <div class="virality-bar-wrap">
+                            <div class="virality-track">
+                                <div class="virality-fill" id="virality-bar"></div>
+                            </div>
+                            <div class="virality-labels">
+                                <span>Low</span><span>Medium</span><span>High</span>
+                            </div>
+                        </div>
                     </div>
                     <p class="reasoning" id="virality-reasoning"></p>
                 </div>
 
-                <div class="card" id="card-distribution">
-                    <h3>Audience Distribution</h3>
+                <!-- Distribution Card -->
+                <div class="card card--dist" id="card-distribution">
+                    <div class="card-header">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        <h3>Audience Distribution</h3>
+                    </div>
                     <div class="audience-grid" id="audience-grid"></div>
                 </div>
 
-                <div class="card" id="card-summary">
-                    <h3>Summary</h3>
+                <!-- Summary Card -->
+                <div class="card card--summary" id="card-summary">
+                    <div class="card-header">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></svg>
+                        <h3>Summary</h3>
+                    </div>
                     <p id="summary-text"></p>
                 </div>
             </section>
-        </main>
+        </div>
     </div>
 
     <script src="app.js"></script>
